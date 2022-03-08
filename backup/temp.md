@@ -1,0 +1,1 @@
+<p>fichier readme à supprimer dès lors qu'un fichier autre existe dans le répertoire créé.</p>
