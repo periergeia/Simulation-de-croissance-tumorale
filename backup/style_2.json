@@ -1,0 +1,52 @@
+{
+    "space": {
+        "relative": {
+            "x": 0,
+            "y": 0.05,
+            "w": 1,
+            "h": 0.95
+        },
+        "margin": 0,
+        "color": "dark"
+    },
+    "sub_window_1": {
+        "relative": {
+            "x": 0.05,
+            "y": 0.1,
+            "w": 0.2,
+            "h": 0.2
+        },
+        "margin": 0.05,
+        "color": "default"
+    },
+    "sub_window_2": {
+        "relative": {
+            "x": 0.05,
+            "y": 0.4,
+            "w": 0.25,
+            "h": 0.55
+        },
+        "margin": 0.05,
+        "color": "default"
+    },
+    "sub_window_3": {
+        "relative": {
+            "x": 0.6,
+            "y": 0.1,
+            "w": 0.35,
+            "h": 0.5
+        },
+        "margin": 0.05,
+        "color": "default"
+    },
+    "sub_window_4": {
+        "relative": {
+            "x": 0.5,
+            "y": 0.7,
+            "w": 0.45,
+            "h": 0.25
+        },
+        "margin": 0.05,
+        "color": "default"
+    }
+}
