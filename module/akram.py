@@ -1,1 +1,0 @@
-"""module temporaire codé par Akram."""
