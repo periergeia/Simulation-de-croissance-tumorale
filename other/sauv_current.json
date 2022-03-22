@@ -1,0 +1,46 @@
+{
+    "window": {
+        "size": [
+            0,
+            0
+        ],
+        "width": 0,
+        "height": 0,
+        "position": null,
+        "margin": 0,
+        "color": "default"},
+    "sub_window_1": {
+        "size": [
+            0,
+            0
+        ],
+        "rel_size": [
+            0,
+            0
+        ],
+        "rel_position": [
+            0,
+            0
+        ],
+        "width": 0,
+        "height": 0,
+        "position": null,
+        "margin": 0,
+        "color": "default"
+    },
+    "sub_window_2": {
+        "rel_size": [
+            0,
+            0
+        ],
+        "rel_position": [
+            0,
+            0
+        ],
+        "width": 0,
+        "height": 0,
+        "position": null,
+        "margin": 0,
+        "color": "default"
+    }
+}
