@@ -18,17 +18,18 @@ COLOR = {'RED': (237, 41, 57),
          'SILVER': (187, 194, 204),
          'BRONZE':(205, 127, 50),
          'DARK': (0, 0, 0),
+         'LIGHT_GREY': (100, 100, 100),
          'GREY': (50, 50, 50)}
 
 
-COLOR_THEME = {'default': {'background': 'RED',
+COLOR_THEME = {'default': {'background': 'LIGHT_GREY',
                            'font': 'ORANGE',
                            'border': 'WHITE'},
                'dark': {'background': 'GREY',
                         'font': 'WHITE',
                         'border': 'GREY'}}
 
-WINDOWS = ['space', 'sub_window_1', 'sub_window_2', 'sub_window_3', 'sub_window_4']
+SUBWINDOWS_NAMES = ['sub_window_1', 'sub_window_2', 'sub_window_3', 'sub_window_4']
 
 
 FONT_HEIGHT = [19, 20, 22, 23, 25, 26, 28, 29, 31, 32, 34, 35, 37,
