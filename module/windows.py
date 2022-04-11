@@ -343,7 +343,7 @@ class Text(pygame.sprite.Sprite):
     font = {}
     for number, size in {i : i * 3 + 6 for i in range(5)}.items():
         font[number] = {}
-        font[number]['font'] = pygame.font.Font("other/Anton-Regular.ttf", size)
+        font[number]['font'] = pygame.font.Font("other/Montserrat.ttf", size)
         font[number]['height'] = font[number]['font'].size('.')[1]
 
     def __init__(self, content, sprite, height_ratio):
