@@ -1,6 +1,6 @@
 """fichier comportant la boucle principale."""
 
-from module.windows import Game
+from module.gameplay import Game
 
 
 if __name__ == "__main__":
