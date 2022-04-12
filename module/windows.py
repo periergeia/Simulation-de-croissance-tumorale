@@ -8,17 +8,14 @@ import math
 import random
 import pygame
 import pygame.freetype
-import termcolor
 try:
     from constant import COLOR_THEME, COLOR
     from game_objects import Cursor, Layer
-    from dev_cell import Cell
     from handle_json import get_value
     from mode import style
 except ModuleNotFoundError:
     from module.constant import COLOR_THEME, COLOR
     from module.game_objects import Cursor, Layer
-    from module.dev_cell import Cell
     from module.handle_json import get_value
     from module.mode import style
 
