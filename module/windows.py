@@ -8,17 +8,14 @@ import math
 import random
 import pygame
 import pygame.freetype
-import termcolor
 try:
     from constant import COLOR_THEME, COLOR
     from game_objects import Cursor, Layer
-    from dev_cell import Cell
     from handle_json import get_value
     from mode import style
 except ModuleNotFoundError:
     from module.constant import COLOR_THEME, COLOR
     from module.game_objects import Cursor, Layer
-    from module.dev_cell import Cell
     from module.handle_json import get_value
     from module.mode import style
 
@@ -283,8 +280,9 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
     """
     count = 0
     font_size = None
+    group = {}
 
-    def __init__(self, name, menu_names, window):
+    def __init__(self, text, menu_names, window):
         """méthode constructrice de la classe prenant en argument :
         `name` est une chaîne de caractères pour attribuer un nom au menu
         déroulant, `menu_names` une liste de chaînes de caractères et
@@ -292,17 +290,22 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
         pygame.sprite.OrderedUpdates.__init__(self)
         self.content = menu_names
         self.displayed = False
+        self.name = ScrollingMenu.count
+        ScrollingMenu.group[self.name] = self
 
-        m = ScrollingMenu.Menu(name)
+        # self.menu_choice = ScrollingMenu.Choice(self)  # ##
         
-        self.add(m)
-        self.add(Text(name, m, 2/3))
-
+        menu = ScrollingMenu.Menu(self.name)
+        self.add(menu, Text(text, menu, 0.8))
         for name in menu_names:
             SubWindow(name, window)
-        self.name = name
         Layer.all_sprites.add(self)
 
+
+    def change_visibility(self):
+        self.displayed = not self.displayed
+        if self.displayed:
+            ...
 
     class Menu(pygame.sprite.Sprite):
 
@@ -310,7 +313,7 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
             self.number = ScrollingMenu.count
             ScrollingMenu.count += 1
             self.name = name
-            self._layer = 0 # le dernier
+            self._layer = 0  # opter pour le dernier
             pygame.sprite.Sprite.__init__(self)
 
         def resize(self, window):
@@ -321,6 +324,16 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
             self.rect = pygame.Rect(x_value, 0, w_value, h_value)
             self.image = pygame.Surface(self.rect.size)
             self.image.fill((0, 150, 0))
+    
+    """class Choice(pygame.sprite.Group):
+
+        def __init__(self, sprite):
+            for i, choice in enumerate(sprite.content):
+                menu_choice = pygame.sprite.Sprite(self)
+                menu_choice.name = sprite.name
+                menu_choice.text = choice
+                menu_choice.number = i"""
+
 
     def create_text(self):
         ...
@@ -343,7 +356,8 @@ class Text(pygame.sprite.Sprite):
     font = {}
     for number, size in {i : i * 3 + 6 for i in range(5)}.items():
         font[number] = {}
-        font[number]['font'] = pygame.font.Font("other/Montserrat.ttf", size)
+        # font[number]['font'] = pygame.font.Font("other/Montserrat.ttf", size)
+        font[number]['font'] = pygame.font.Font("other/Anton-Regular.ttf", size)
         font[number]['height'] = font[number]['font'].size('.')[1]
 
     def __init__(self, content, sprite, height_ratio):
@@ -366,8 +380,8 @@ class Text(pygame.sprite.Sprite):
         area_width, area_height = self.parent.rect.size
         font_height = area_height * self.height_ratio
         print(font_height)
-        # détermination de la hauteur max du text
-        if font_height > Text.font[0]['height']:
+        # détermination de la hauteur max du texte
+        if font_height < Text.font[0]['height']:
             font_size = 0
         else:
             font_size = 0
@@ -381,6 +395,6 @@ class Text(pygame.sprite.Sprite):
                 font_size -= 1
         except:
             pass
-        self.image = Text.font[font_size]['font'].render(self.content, 1, (150, 0, 0))
+        self.image = Text.font[font_size]['font'].render(self.content, 1, (255, 255, 255))
         self.rect = self.image.get_rect(center=self.parent.rect.center)
         print("taille de font :  ", font_size)
