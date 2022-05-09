@@ -12,21 +12,16 @@ import termcolor
 try:
     from constant import COLOR_THEME, COLOR
     from game_objects import Cursor, Layer
-    from dev_cell import Cell
     from handle_json import get_value
     from mode import style
 except ModuleNotFoundError:
     from module.constant import COLOR_THEME, COLOR
     from module.game_objects import Cursor, Layer
-    from module.dev_cell import Cell
     from module.handle_json import get_value
     from module.mode import style
 
 
 pygame.init()
-
-
-# ##func_name = {'cell': Cell}
 
 
 class Window(pygame.sprite.Sprite):
@@ -74,7 +69,7 @@ class SubWindow(pygame.sprite.OrderedUpdates):
     def __init__(self, name, window):
         pygame.sprite.OrderedUpdates.__init__(self)
         SubWindow.group[name] = self
-        self.display = SubWindow.Display(name, window)
+        self.display = SubWindow.Display(name, window, self)
         self.button = SubWindow.Button(self.display)
         # self.add(SubWindow.Display(name, window), SubWindow.Button)
         self.add(self.button)
@@ -115,6 +110,23 @@ class SubWindow(pygame.sprite.OrderedUpdates):
         except KeyError:  # ## voir à changer
             pass
 
+    def resize(self, window):
+        """méthode appelant les méthodes de redimensionnement propre à chaque
+        instance de sprites de la classe."""
+        # redimenssionement de tous les sprites de sous-fenêtre apparents sur
+        # le sprite de l'instance Window
+        self.button.resize()
+        self.display.resize(window)
+        self.display.borders.resize()
+
+    def single_resize(self, window):
+        # ne fonctionne que pour le bord gauche
+        previous_relative_x = self.display.data['relative']['x']
+        self.display.data['relative']['x'] = pygame.mouse.get_pos()[0] / window.get_size()[0]
+        diff = self.display.data['relative']['x'] - previous_relative_x
+        self.display.data['relative']['w'] = self.display.data['relative']['w'] - diff
+        self.resize(window)
+        # test min et ratio à intégrer
 
     class Button(pygame.sprite.Sprite):
 
@@ -149,10 +161,12 @@ class SubWindow(pygame.sprite.OrderedUpdates):
 
         def resize(self):
             # 0 --> bord du haut (top)
+            print(self.stock['0'].rect)
             self.stock['0'].rect.update(self.parent.rect.x,
                                         self.parent.rect.y,
                                         self.parent.rect.w,
                                         SubWindow.border_width)
+            print(self.stock['0'].rect)
             # 1 --> bord du bas (bottom)
             self.stock['1'].rect.update(self.parent.rect.x,
                                         self.parent.rect.h + self.parent.rect.y - SubWindow.border_width,
@@ -194,11 +208,12 @@ class SubWindow(pygame.sprite.OrderedUpdates):
 
     class Display(Window):
 
-        def __init__(self, name, window, func=None):
+        def __init__(self, name, window, parent, func=None):
             super().__init__(name, window)
             # définition des bords de l'affichage de la sous-fenêtre
             self.borders = SubWindow.Border(self)
             SubWindow.group[self.name].add(self, self.borders)  # ##
+            self.parent = parent
             # self.func = Cell(random.randint(5, 15), self.image)
 
         def test_side(self, cursor):
@@ -218,6 +233,7 @@ class SubWindow(pygame.sprite.OrderedUpdates):
                 collided = list((map(lambda x : x.number, collided)))
                 # dans le cas où il n'y en a pas
                 if not collided:
+                    # pygame.event.post(pygame.event.Event(pygame.USEREVENT+2, {'value': False}))
                     Cursor.set_current('default')
                 # si il y a exactement un sprite entré en collision
                 elif len(collided) == 1:
@@ -283,6 +299,7 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
     """
     count = 0
     font_size = None
+    dict_all = {}
 
     def __init__(self, name, menu_names, window):
         """méthode constructrice de la classe prenant en argument :
@@ -290,28 +307,42 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
         déroulant, `menu_names` une liste de chaînes de caractères et
         `window` l'objet pygame.Surface de la fenêtre de jeu pygame."""
         pygame.sprite.OrderedUpdates.__init__(self)
+
+        self._layer = 10 # ##
+        
         self.content = menu_names
         self.displayed = False
+        ScrollingMenu.dict_all[name] = self
 
-        m = ScrollingMenu.Menu(name)
-        
-        self.add(m)
-        self.add(Text(name, m, 2/3))
+        self.name = name
+        self.menu = self.Menu(self)
+        self.menu_option = self.MenuOption(self)
+
+        self.add(Text(name, self.menu, 2/3))
 
         for name in menu_names:
             SubWindow(name, window)
-        self.name = name
         Layer.all_sprites.add(self)
-
+    
+    @staticmethod
+    def resize(window):
+        for instance in ScrollingMenu.dict_all.values():
+            instance.menu.resize(window)
+            instance.menu_option.update_rect_info()
+            instance.menu_option.resize()
+        # ## rechoisir taille texte ?
 
     class Menu(pygame.sprite.Sprite):
 
-        def __init__(self, name):
+        def __init__(self, parent):
+            self.parent = parent
             self.number = ScrollingMenu.count
             ScrollingMenu.count += 1
-            self.name = name
-            self._layer = 0 # le dernier
-            pygame.sprite.Sprite.__init__(self)
+            self.name = parent.name
+            self._layer = self.parent._layer
+            pygame.sprite.Sprite.__init__(self, self.parent, Layer.scrolling_menu)
+            self.rect = pygame.Rect(0, 0, 0, 0)
+            self.image = pygame.Surface((1, 1))
 
         def resize(self, window):
             main_window_w, main_window_h = window.get_width(), window.get_height()
@@ -320,10 +351,58 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
             h_value = round(0.05 * main_window_h)
             self.rect = pygame.Rect(x_value, 0, w_value, h_value)
             self.image = pygame.Surface(self.rect.size)
-            self.image.fill((0, 150, 0))
+            color_theme = COLOR_THEME[Window.dict_all['space'].data['color']]
+            self.image.fill(COLOR[color_theme['background']])
+            pygame.draw.rect(self.image, COLOR[color_theme['border']], pygame.Rect(0, 0, w_value, h_value), SubWindow.border_width)
+
+    class MenuOption(pygame.sprite.Group):
+        def __init__(self, parent):
+            self.parent = parent
+            pygame.sprite.Group.__init__(self)
+            self.update_rect_info()
+            self._layer = self.parent._layer
+            for i, name in enumerate(parent.content):
+                self.Option(self, name, i)
+            self.parent.add(self)
+        
+        def update_rect_info(self):
+            self.rect_info = self.parent.menu.rect
+        
+        def resize(self):
+            for sprite in self:
+                sprite.resize()
+
+        class Option(pygame.sprite.Sprite):
+            def __init__(self, parent, name, place):
+                self._layer = parent._layer
+                pygame.sprite.Sprite.__init__(self, parent)
+                self.parent = parent
+                self.name = name
+                self.place = place
+
+            def resize(self):
+                self.rect = self.parent.rect_info.copy()
+                self.rect.y = (self.place + 1) * self.parent.rect_info.height
+                self.image = pygame.Surface(self.rect.size)
+                color_theme = COLOR_THEME[Window.dict_all['space'].data['color']]
+                self.image.fill(COLOR[color_theme['background']])
+                pygame.draw.rect(self.image, COLOR[color_theme['border']], pygame.Rect((0, 0), (self.rect.size)), SubWindow.border_width)
+            
+
 
     def create_text(self):
         ...
+    
+    def change_visibility(self):
+        self.displayed = not self.displayed
+        if self.displayed:
+            print('affiché')
+            self.remove(self.menu_option)
+            Layer.test()
+        else:
+            print('non affiché')
+            self.add(self.menu_option)
+
 
 
     def create_surface(self):
@@ -343,7 +422,8 @@ class Text(pygame.sprite.Sprite):
     font = {}
     for number, size in {i : i * 3 + 6 for i in range(5)}.items():
         font[number] = {}
-        font[number]['font'] = pygame.font.Font("other/Montserrat.ttf", size)
+        # font[number]['font'] = pygame.font.Font("other/Montserrat.ttf", size)
+        font[number]['font'] = pygame.font.Font("other/Anton-Regular.ttf", size)
         font[number]['height'] = font[number]['font'].size('.')[1]
 
     def __init__(self, content, sprite, height_ratio):
@@ -354,6 +434,9 @@ class Text(pygame.sprite.Sprite):
         self.height_ratio = height_ratio
         self._layer = sprite._layer
         pygame.sprite.Sprite.__init__(self)
+
+        self.rect = pygame.Rect(0, 0, 0, 0)
+        self.image = pygame.Surface((1, 1))
 
     @staticmethod
     def find_size():
@@ -366,8 +449,8 @@ class Text(pygame.sprite.Sprite):
         area_width, area_height = self.parent.rect.size
         font_height = area_height * self.height_ratio
         print(font_height)
-        # détermination de la hauteur max du text
-        if font_height > Text.font[0]['height']:
+        # détermination de la hauteur max du texte
+        if font_height < Text.font[0]['height']:
             font_size = 0
         else:
             font_size = 0
@@ -376,11 +459,12 @@ class Text(pygame.sprite.Sprite):
                     font_size += 1
             except IndexError:
                 pass
-        try:
-            while Text.font[font_size]['font'].size(self.content)[0] > area_width:
-                font_size -= 1
-        except:
-            pass
-        self.image = Text.font[font_size]['font'].render(self.content, 1, (150, 0, 0))
+        if font_size != 0:
+            try:
+                while Text.font[font_size]['font'].size(self.content)[0] > area_width:
+                    font_size -= 1
+            except:
+                pass
+        self.image = Text.font[font_size]['font'].render(self.content, 1, (255, 255, 255))
         self.rect = self.image.get_rect(center=self.parent.rect.center)
         print("taille de font :  ", font_size)
