@@ -7,16 +7,15 @@ import pygame.freetype
 try:
     from constant import SUBWINDOWS_NAMES
     from game_objects import Cursor, Layer
-    from useful import Chronometer
     from windows import Window, SubWindow, ScrollingMenu
 except ModuleNotFoundError:
     from module.constant import SUBWINDOWS_NAMES
     from module.game_objects import Cursor, Layer
-    from module.useful import Chronometer
     from module.windows import Window, SubWindow, ScrollingMenu
 
 
-# Window priority avec name et non pas le sprite ?
+# menu permettant de choisir une mutation, qui apparait selon une certaine proba ou une clock particulière
+# ajouter sprite pour définir espace pour grab
 
 
 class Game:
@@ -44,8 +43,8 @@ class Game:
         self.screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
         self.state = 1
         self.cursor = None  # ## ?
-        self.can_resize = False
-        
+        self.resizing = {'can_resize': False, 'window': None, 'side': None, 'is_resizing': False}
+
         # importation d'image
         icon = pygame.image.load("./image/logo.ico").convert_alpha()  # ##déplacement ?
         # personnalisation de la fenêtre
@@ -69,15 +68,16 @@ class Game:
                 if type(sprite) == SubWindow.Display:
                     sprite.resize(self.screen)
                     SubWindow.group[sprite.name].button.resize()
-                    sprite.borders.resize()        
-    
+                    sprite.borders.resize()
+        ScrollingMenu.resize(self.screen)
+
+
     def static_mouse_event(self):
         # vérifie si la souris est sur la fenêtre "prioritaire"
         if Window.priority == Layer.mouse_over():
             return True
         # dans le cas où la souris n'est pas sur la fenêtre
         # redéfinition d'une fenêtre prioritaire
-
         Window.priority = Layer.mouse_over()
         # si la nouvelle fenêtre prioritaire est bien sur la fenêtre pygame
         if Window.priority is not None:  # ## condition inutile ?, :/ changer
@@ -93,7 +93,7 @@ class Game:
     def run(self):
         
         Layer.all_sprites.add(Window('space', self.screen))
-        ScrollingMenu("test lambda", SUBWINDOWS_NAMES, self.screen)
+        ScrollingMenu('■ ■ ■', SUBWINDOWS_NAMES, self.screen)
         Layer.test()
 
         cursor = Cursor()  # ## en faire un attribut de la classe Game ?
@@ -105,6 +105,8 @@ class Game:
 
         clock = pygame.time.Clock()
         check_priority_change = pygame.mouse.get_focused()
+        self.resizing['can_resize'] = Cursor.get_resizing_status()
+
         while self.state:
             
             for event in pygame.event.get():
@@ -123,18 +125,15 @@ class Game:
                     #Window.priority = event.dict['rect']['over']
                     #SubWindow.dict_all['sub_window_2'].update()
                     print('-----', Window.priority)
+                
+                if event.type == Game.RESIZING:
+                    self.resizing['window'] = Window.dict_all[Window.priority]
+                    self.resizing['can_resize'] = event.state
+                    self.resizing['side'] = event.side
 
-                if Cursor.resizing:
-                    if event.type == pygame.MOUSEBUTTONDOWN:
-                        ...
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     print(event.pos)
-                     #if pygame.sprite.collide_mask(cursor, Window.priority):
-                    # if pygame.sprite.collide_mask(cursor, SubWindow.button_mask):
-                    # if cursor.mask.overlap(SubWindow.button_mask, offset):
-                    #if SubWindow.button_mask
                     try:
-                        # if SubWindow.group[Window.priority].button.rect.collidepoint(pygame.mouse.get_pos()):
                         if pygame.sprite.collide_mask(cursor, SubWindow.group[Window.priority].button):
                             SubWindow.change_visibility(Window.priority)
                             Layer.test()
@@ -143,8 +142,33 @@ class Game:
                         print(Window.priority)
                     except KeyError:
                         pass
+                    if self.resizing['can_resize']:
+                        self.resizing['is_resizing'] = True
+
+                    # dans le cas où une collision s'opère entre le curseur et
+                    # un menu déroulant
+                    scrolling_menu_collide = pygame.sprite.spritecollide(cursor, Layer.scrolling_menu, False)
+                    if scrolling_menu_collide:
+                        scrolling_menu_collide[0].parent.change_visibility()
+
+                if event.type == pygame.MOUSEMOTION:
+                    if self.resizing['is_resizing']:
+                        try:
+                            self.resizing['window'].parent.single_resize(self.screen)
+                            Cursor.set_current(self.resizing['side'])
+                        except AttributeError:
+                            pass
+
                 if event.type == pygame.VIDEORESIZE:
                     self.resize()
+
+                if event.type == pygame.MOUSEBUTTONUP:
+                    if self.resizing['is_resizing']:
+                        #try:
+                        self.resizing['can_resize'] = False
+                        self.resizing['is_resizing'] = False
+                        #except AttributeError:
+                            #pass
             
             if check_priority_change:
                 self.static_mouse_event()
@@ -165,4 +189,3 @@ class Game:
 
             pygame.display.set_caption(f'FPS: {clock.get_fps()}')  # ##
             clock.tick(60)
-            
