@@ -44,6 +44,10 @@ class Cursor(pygame.sprite.Sprite):
         self.rect = pygame.Rect(0, 0, 1, 1)
 
     @staticmethod
+    def get_resizing_status():
+        return Cursor.resizing
+
+    @staticmethod
     def set_current(name):
         """méthode mutatrice redéfinissant les attributs de classe current et
         resizing."""
@@ -51,8 +55,13 @@ class Cursor(pygame.sprite.Sprite):
         pygame.mouse.set_cursor(Cursor.cursors[name])
         # si le curseur est celui par défaut, il ne s'agit pas d'un curseur
         # pour le redimensionnement donc Cursor.resizing sera défini comme
-        # False, autrement, l'attrbut de classe vaut True
-        Cursor.resizing = Cursor.current != 'default'
+        # False, autrement, l'attribut de classe vaut True
+        new_value = Cursor.current != 'default'
+        # dans le cas où cette nouvelle valeur est différente de l'actuelle
+        if Cursor.resizing != new_value:
+            # soulève un nouvel évènement dans la queue des events pygame 
+            pygame.event.post(pygame.event.Event(pygame.USEREVENT+2, state=new_value, side=name))
+        Cursor.resizing = new_value
 
     def update(self):
         """met à jour les coordonnées du rect pygame associé au sprite."""
@@ -66,7 +75,8 @@ class Layer:
 
     stock = pygame.sprite.Group()
     all_sprites = pygame.sprite.LayeredUpdates()
-    windows = pygame.sprite.Group()
+    windows = pygame.sprite.Group()  # ##
+    scrolling_menu = pygame.sprite.Group()
 
     @staticmethod
     def find(sprite):
