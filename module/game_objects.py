@@ -31,7 +31,8 @@ class Cursor(pygame.sprite.Sprite):
                'NS': pygame.cursors.Cursor(pygame.SYSTEM_CURSOR_SIZENS),
                'WE': pygame.cursors.Cursor(pygame.SYSTEM_CURSOR_SIZEWE),
                'NWSE': pygame.cursors.Cursor(pygame.SYSTEM_CURSOR_SIZENWSE),
-               'NESW': pygame.cursors.Cursor(pygame.SYSTEM_CURSOR_SIZENESW)} 
+               'NESW': pygame.cursors.Cursor(pygame.SYSTEM_CURSOR_SIZENESW)}
+    wall = None
     test = None
     current = cursors['default']
     resizing = False
