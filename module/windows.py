@@ -4,27 +4,47 @@
 - ScrollingMenu
 pour la gestion des objets modélisant des fenêtres du jeu."""
 
+
 import math
-import random
 import pygame
-import pygame.freetype
-import termcolor
 try:
     from constant import COLOR_THEME, COLOR
     from game_objects import Cursor, Layer
     from handle_json import get_value
     from mode import style
+    from useful import get_top_left_pos, Text
 except ModuleNotFoundError:
     from module.constant import COLOR_THEME, COLOR
     from module.game_objects import Cursor, Layer
     from module.handle_json import get_value
     from module.mode import style
+    from module.useful import get_top_left_pos, Text
 
 
 pygame.init()
 
 
 class Window(pygame.sprite.Sprite):
+    """modélise une 'fenêtre' à savoir une surface dans la fenêtre de jeu
+    pygame laquelle est sensible aux changements de dimension de cette
+    dernière.
+
+    ATTRIBUTS DE CLASSE:
+    - `dict_all` (dict) : contient toutes les références d'instance créée
+    avec la classe repertoriées par le nom en tant que clef du
+    dictionnaire ;
+    - `priority` (None | str) : correspond au nom de la fenêtre sur laquelle
+    le curseur se situe.
+
+    ATTRIBUTS:
+    - `data` (dict) : contient les données (position relative,
+    taille relative, ...) de l'objet fenêtre récupérées dans un fichier JSON
+    (précisé par le nom de la fenêtre) ;
+    - `image` (pygame.Surface) : représentation graphique de l'instance ;
+    - `_layer` (int) : position du calque ;
+    - `name` (str) : nom de la fenêtre ;
+    - `rect` (pygame.Rect) : défini la position et les dimensions utiles à
+    l'affichage."""
 
     dict_all = {}
     priority = None
@@ -32,11 +52,12 @@ class Window(pygame.sprite.Sprite):
     def __init__(self, name, window):
         """méthode constructrice."""
         self.name = name
-        # récupération des données initiales de la sous-fenêtre
+        # récupération des données initiales de la fenêtre
         self.data = get_value(file_path=f'./other/style_{style}.json', key=name)
         # ajoute dans le dictionnaire appartenant à la classe, l'object en
         # tant que valeur ayant pour clef son nom `name`
         Window.dict_all[name] = self
+        # quelques formalités pour pylint
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.image = pygame.Surface((0, 0))
         self.resize(window)
@@ -62,17 +83,39 @@ class Window(pygame.sprite.Sprite):
 
 
 class SubWindow(pygame.sprite.OrderedUpdates):
+    """modélise une 'sous-fenêtre' une surface pouvant être redimensionnée,
+    supprimée de la fenêtre de jeu grâce à un bouton situé dans le coin
+    haut-droit de sa surface rectangulaire.
+
+    ATTRIBUTS DE CLASSE:
+    - `border_width` (int) : correpond à l'épaisseur en pixel de la bordure
+    d'une sous-fenêtre ;
+    - `group` (dict) : contient les instances de la classe, les clefs étant
+    les noms des sous-fenêtres.
+
+    ATTRIBUTS:
+    - `button` (SubWindow.Button) : bouton de la sous-fenêtre ;
+    - `display` (SubWindow.Button) : écran de la sous-fenêtre.
+
+    ARCHITECTURE DE LA CLASSE:
+    SubWindow
+        |___Button
+        |___Border
+            |___Edge
+        |___Display
+    """
 
     border_width = 0
     group = {}
 
     def __init__(self, name, window):
+        """méthode constructrice."""
         pygame.sprite.OrderedUpdates.__init__(self)
         SubWindow.group[name] = self
         self.display = SubWindow.Display(name, window, self)
         self.button = SubWindow.Button(self.display)
-        # self.add(SubWindow.Display(name, window), SubWindow.Button)
         self.add(self.button)
+        # l'instance est ajoutée à Layer.all_sprites afin d'être rendu visible
         Layer.all_sprites.add(self)
 
     @staticmethod
@@ -83,24 +126,27 @@ class SubWindow(pygame.sprite.OrderedUpdates):
         jeu pygame. Ces deux dimensions sont stockés dans les attributs de
         classe leur correspondant."""
         # définition de la taille du bouton de fermeture
-        SubWindow.Button.radius = round(math.sqrt(window.get_width() / 50 + window.get_height() / 50))
-        # définition de l'objet pygame.Surface correspondant à l'image du bouton
-        SubWindow.Button.image = pygame.Surface((SubWindow.Button.radius * 2, SubWindow.Button.radius * 2))
+        SubWindow.Button.radius = round(math.sqrt(window.get_width() / 50 + \
+                                                  window.get_height() / 50))
+        # définition de l'objet pygame.Surface pour l'image du bouton
+        SubWindow.Button.image = pygame.Surface((SubWindow.Button.radius * 2,
+                                                 SubWindow.Button.radius * 2))
         SubWindow.Button.image.set_colorkey((0, 0, 0))
+        color_theme = COLOR_THEME[Window.dict_all['sub_window_1'].data['color']]
         pygame.draw.circle(SubWindow.Button.image,
-                           COLOR[COLOR_THEME[Window.dict_all['sub_window_1'].data['color']]['background']],
+                           COLOR[color_theme['background']],
                            SubWindow.Button.image.get_rect().center,
                            SubWindow.Button.radius)
         pygame.draw.circle(SubWindow.Button.image,
-                           COLOR[COLOR_THEME[Window.dict_all['sub_window_1'].data['color']]['border']],
+                           COLOR[color_theme['border']],
                            SubWindow.Button.image.get_rect().center,
                            SubWindow.Button.radius, 1)
         # définition de l'objet pygame.mask.Mask associé
         SubWindow.Button.mask = pygame.mask.from_surface(SubWindow.Button.image)
 
         # définition du nombre de pixel pour l'épaisseur des bordures
-        SubWindow.border_width = round(math.sqrt(window.get_width() / 250 + window.get_height() / 250))
-        # SubWindow.border_width = round(math.sqrt(window.get_width() / 205 + window.get_height() / 114))
+        SubWindow.border_width = round(math.sqrt(window.get_width() / 250 + \
+                                                 window.get_height() / 250))
         print("bordure taille", SubWindow.border_width)  # ##
 
     @staticmethod
@@ -120,11 +166,40 @@ class SubWindow(pygame.sprite.OrderedUpdates):
         self.display.borders.resize()
 
     def single_resize(self, window):
-        # ne fonctionne que pour le bord gauche
-        previous_relative_x = self.display.data['relative']['x']
-        self.display.data['relative']['x'] = pygame.mouse.get_pos()[0] / window.get_size()[0]
-        diff = self.display.data['relative']['x'] - previous_relative_x
-        self.display.data['relative']['w'] = self.display.data['relative']['w'] - diff
+        """fonction astucieuse pour le redimensionnement d'une sous-fenêtre."""
+        value = {'0': ('y', 'h'),
+                 '1': ('h', 'y'),
+                 '2': ('x', 'w'),
+                 '3': ('w', 'x')}  # ##déplacer ?
+        # pour chaque bord en contact avec le curseur (deux au plus)         
+        for edge in Cursor.wall:
+            # previous_relative_value peut être inutilisé dans certains cas
+            # il est plus rentable que de vérifier si edge = 0 | edge = 2
+            previous_relative_value = self.display.data['relative'][value[edge][0]]
+            # il s'agit de savoir si les valleurs changer sont dépendant de la
+            # largeur ou de la longueur de la fenêtre de jeu, on rappelle que
+            # tout est défini relativement à celle-ci en terme de
+            # proportionnalité, x et w dépendent de la largeur tandis que y et
+            # h sont selon la hauteur
+            size_index = 1 if int(edge) < 2 else 0
+            # changement d'une valeur qui prend en considération la position
+            # de la souris et du bord
+            self.display.data['relative'][value[edge][0]] = pygame.mouse.get_pos()[size_index] / window.get_size()[size_index]
+            # s'il s'agit du bord haut ('0') ou du bord gauche ('2')
+            if int(edge) % 2 == 0:
+                # il s'agit de changer la hauteur (si bord haut)
+                # (respectivement la largeur (si bord gauche)) afin de donner
+                # l'illusion que la position du bord bas (respectivement bord
+                # droit) reste inchangée
+                diff = self.display.data['relative'][value[edge][0]] - previous_relative_value
+                self.display.data['relative'][value[edge][1]] = self.display.data['relative'][value[edge][1]] - diff
+            # il ne peut que s'agir du bord bas ('1') ou du bord droit ('3')
+            else:
+                # il faut déduire de la valeur nouvellement prise, celle de la
+                # position x pour le bord droit et celle de la position y pour
+                # le bord bas
+                self.display.data['relative'][value[edge][0]] -= self.display.data['relative'][value[edge][1]]
+        # redimensionnement de la sous-fenêtre
         self.resize(window)
         # test min et ratio à intégrer
 
@@ -190,7 +265,7 @@ class SubWindow(pygame.sprite.OrderedUpdates):
                 sprite.image.fill(COLOR_THEME[self.parent.data['color']]['border'])
 
 
-        class Edge(pygame.sprite.Sprite):  # ## too few public method (0/2)
+        class Edge(pygame.sprite.Sprite):
             """
             0 : top,
             1 : bottom,
@@ -219,21 +294,21 @@ class SubWindow(pygame.sprite.OrderedUpdates):
         def test_side(self, cursor):
             """fonction permettant de vérifier la position du curseur sur la
             sous-fenêtre, elle change le curseur en fonction de cette position,
-            optant pour un curseur de redimensionnement correspondant au bord sur
-            lequel se situe le curseur.
+            optant pour un curseur de redimensionnement correspondant au bord
+            sur lequel se situe le curseur.
             `cursor` est une instance de la classe Cursor."""
             def set_changes(collided):
                 """fonction cherchant le curseur adéquat selon les bords de la
-                sous-fenêtre en collision avec le curseur. `collided` est une liste
-                contenant les sprites en collision."""
+                sous-fenêtre en collision avec le curseur. `collided` est une
+                liste contenant les sprites en collision."""
                 # mis à jour du/des bord(s) à tester
                 Cursor.test = collided
                 # il s'agit de récupérer le nom des sprites concernés
                 # par une collision avec le curseur
                 collided = list((map(lambda x : x.number, collided)))
+                Cursor.wall = collided
                 # dans le cas où il n'y en a pas
                 if not collided:
-                    # pygame.event.post(pygame.event.Event(pygame.USEREVENT+2, {'value': False}))
                     Cursor.set_current('default')
                 # si il y a exactement un sprite entré en collision
                 elif len(collided) == 1:
@@ -243,35 +318,38 @@ class SubWindow(pygame.sprite.OrderedUpdates):
                     # autrement, il ne peut que s'agir de right ou left
                     else:
                         Cursor.set_current('WE')
-                # deux sprites sont en collision, il reste à déterminer lesquels
+                # deux sprites sont collided, reste à déterminer lesquels
                 else:
-                    # attribution d'une valeur à l'intersection de sprites, selon
-                    # leur nom pour evaluer l'angle de la sous-fenêtre qui est
-                    # sous le curseur
+                    # attribution d'une valeur à l'intersection de sprites,
+                    # selon leur nom pour evaluer l'angle de la sous-fenêtre
+                    # qui est sous le curseur
                     value = int(''.join(collided))
-                    # value vaut 3 ou 12, il s'agit donc des angles haut-droit ou
-                    # bas-gauche
+                    # value vaut 3 ou 12, il s'agit donc des angles haut-droit
+                    # ou bas-gauche
                     if value % 3 == 0:
                         Cursor.set_current('NESW')
-                    # il ne peut alors s'agir que des angles restants, à savoir :
-                    # haut-gauche ou bas-droit
+                    # il ne peut alors s'agir que des angles restants,
+                    # à savoir : haut-gauche ou bas-droit
                     else:
                         Cursor.set_current('NWSE')
 
             def check_edge(collided):
-                """vérifie si la souris est toujours sur le sprite de bord stocké
-                en mémoire, si non, on appelle la fonction de recherche pour mettre
-                à jour la variable et l'apparence du curseur.
+                """vérifie si la souris est toujours sur le sprite de bord
+                stocké en mémoire, si non, on appelle la fonction de recherche
+                pour mettre à jour la variable et l'apparence du curseur.
                 `collided` est une liste contenant les sprites en collision."""
                 # tester le nombre de sprites entré en collision est suffisant
-                nb_collided = len(pygame.sprite.groupcollide(collided, Cursor.test, False, False))
+                nb_collided = len(pygame.sprite.groupcollide(collided,
+                                                             Cursor.test,
+                                                             False, False))
                 if nb_collided != len(Cursor.test):
                     set_changes(collided)
 
             def check_no_collision(collided):
                 """vérifie si une collision avec un sprite de bord a lieu.
                 `collided` est une liste contenant les sprites en collision."""
-                # dans le cas où la souris est bien en collision avec au moins un élément
+                # dans le cas où la souris est bien en collision avec au moins
+                # un élément
                 if collided:
                     set_changes(collided)
 
@@ -295,8 +373,7 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
     - `number` (int) ;
     - `` () ;
     - `` () ;
-    - `` () ;
-    """
+    - `` () ;"""
     count = 0
     font_size = None
     dict_all = {}
@@ -308,29 +385,31 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
         `window` l'objet pygame.Surface de la fenêtre de jeu pygame."""
         pygame.sprite.OrderedUpdates.__init__(self)
 
-        self._layer = 10 # ##
-        
+        self._layer = 10 # ## dernier
+
         self.content = menu_names
         self.displayed = False
         ScrollingMenu.dict_all[name] = self
 
         self.name = name
+
         self.menu = self.Menu(self)
         self.menu_option = self.MenuOption(self)
 
-        self.add(Text(name, self.menu, 2/3))
-
-        for name in menu_names:
-            SubWindow(name, window)
+        for element in menu_names:
+            SubWindow(element, window)
         Layer.all_sprites.add(self)
-    
+
     @staticmethod
     def resize(window):
+        liste_des_mots = [f'sub_window_{i}' for i in range(1, 5)] # inutile si on connaît le mot le plus long
+        ScrollingMenu.font_size = Text.get_font_size(liste_des_mots, (round(0.1 * window.get_width()), round(0.05 * window.get_height())), 2/3)
         for instance in ScrollingMenu.dict_all.values():
             instance.menu.resize(window)
             instance.menu_option.update_rect_info()
             instance.menu_option.resize()
         # ## rechoisir taille texte ?
+
 
     class Menu(pygame.sprite.Sprite):
 
@@ -351,9 +430,13 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
             h_value = round(0.05 * main_window_h)
             self.rect = pygame.Rect(x_value, 0, w_value, h_value)
             self.image = pygame.Surface(self.rect.size)
+
             color_theme = COLOR_THEME[Window.dict_all['space'].data['color']]
             self.image.fill(COLOR[color_theme['background']])
             pygame.draw.rect(self.image, COLOR[color_theme['border']], pygame.Rect(0, 0, w_value, h_value), SubWindow.border_width)
+            text = Text.font[ScrollingMenu.font_size]['font'].render(self.name, 1, COLOR[color_theme['border']])
+            self.image.blit(text, get_top_left_pos(text.get_rect(), self))
+
 
     class MenuOption(pygame.sprite.Group):
         def __init__(self, parent):
@@ -363,11 +446,11 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
             self._layer = self.parent._layer
             for i, name in enumerate(parent.content):
                 self.Option(self, name, i)
-            self.parent.add(self)
-        
+            #self.parent.add(self)
+
         def update_rect_info(self):
             self.rect_info = self.parent.menu.rect
-        
+
         def resize(self):
             for sprite in self:
                 sprite.resize()
@@ -387,23 +470,21 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
                 color_theme = COLOR_THEME[Window.dict_all['space'].data['color']]
                 self.image.fill(COLOR[color_theme['background']])
                 pygame.draw.rect(self.image, COLOR[color_theme['border']], pygame.Rect((0, 0), (self.rect.size)), SubWindow.border_width)
-            
+                text = Text.font[ScrollingMenu.font_size]['font'].render(self.name, 1, COLOR[color_theme['border']])
+                self.image.blit(text, get_top_left_pos(text.get_rect(), self))
 
 
     def create_text(self):
         ...
-    
+
     def change_visibility(self):
         self.displayed = not self.displayed
+        Layer.all_sprites.remove(self)
         if self.displayed:
-            print('affiché')
-            self.remove(self.menu_option)
-            Layer.test()
-        else:
-            print('non affiché')
             self.add(self.menu_option)
-
-
+        else:
+            self.remove(self.menu_option)
+        Layer.all_sprites.add(self)
 
     def create_surface(self):
         """"""
@@ -415,56 +496,3 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
 
     def display(self, surface):
         surface.blit(self.surface, self.get_position())
-
-
-class Text(pygame.sprite.Sprite):
-
-    font = {}
-    for number, size in {i : i * 3 + 6 for i in range(5)}.items():
-        font[number] = {}
-        # font[number]['font'] = pygame.font.Font("other/Montserrat.ttf", size)
-        font[number]['font'] = pygame.font.Font("other/Anton-Regular.ttf", size)
-        font[number]['height'] = font[number]['font'].size('.')[1]
-
-    def __init__(self, content, sprite, height_ratio):
-        """`content` str, `surface` pygame.Surface, area_ratio (0:1)"""
-        self.content = content
-        self.parent = sprite
-        self.name = sprite.name
-        self.height_ratio = height_ratio
-        self._layer = sprite._layer
-        pygame.sprite.Sprite.__init__(self)
-
-        self.rect = pygame.Rect(0, 0, 0, 0)
-        self.image = pygame.Surface((1, 1))
-
-    @staticmethod
-    def find_size():
-        ...
-
-    def resize(self, a):  # ## :/
-        """récupère une valeur de taille de police selon `font_height` un entier
-        naturel représentant la hauteur de font voulu en nombre de pixel sur la
-        fenêtre de jeu."""  # ##
-        area_width, area_height = self.parent.rect.size
-        font_height = area_height * self.height_ratio
-        print(font_height)
-        # détermination de la hauteur max du texte
-        if font_height < Text.font[0]['height']:
-            font_size = 0
-        else:
-            font_size = 0
-            try:
-                while font_height >= Text.font[font_size]['height']:
-                    font_size += 1
-            except IndexError:
-                pass
-        if font_size != 0:
-            try:
-                while Text.font[font_size]['font'].size(self.content)[0] > area_width:
-                    font_size -= 1
-            except:
-                pass
-        self.image = Text.font[font_size]['font'].render(self.content, 1, (255, 255, 255))
-        self.rect = self.image.get_rect(center=self.parent.rect.center)
-        print("taille de font :  ", font_size)
