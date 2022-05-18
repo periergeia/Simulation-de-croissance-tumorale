@@ -42,7 +42,7 @@ class Game:
         # définition de la fenêtre pygame de taille dynamique
         self.screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
         self.state = 1
-        self.cursor = None  # ## ?
+        self.cursor = Cursor()
         self.resizing = {'can_resize': False, 'window': None, 'side': None, 'is_resizing': False}
 
         # importation d'image
@@ -93,10 +93,11 @@ class Game:
     def run(self):
         
         Layer.all_sprites.add(Window('space', self.screen))
-        ScrollingMenu('■ ■ ■', SUBWINDOWS_NAMES, self.screen)
+        #ScrollingMenu('■ ■ ■', SUBWINDOWS_NAMES, self.screen)
+        ScrollingMenu('■ ■ ■', [f'sub_window_{i}' for i in range(1, 3)], self.screen)
+        ScrollingMenu('■ ■', ['sub_window_3'], self.screen)
+        ScrollingMenu('■', ['sub_window_4'], self.screen)
         Layer.test()
-
-        cursor = Cursor()  # ## en faire un attribut de la classe Game ?
 
         self.resize()
         # permet de filtrer sur les évènements pygame d'un objet pygame.Event
@@ -126,6 +127,10 @@ class Game:
                     #SubWindow.dict_all['sub_window_2'].update()
                     print('-----', Window.priority)
                 
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_c:
+                        print(Cursor.test)
+                
                 if event.type == Game.RESIZING:
                     self.resizing['window'] = Window.dict_all[Window.priority]
                     self.resizing['can_resize'] = event.state
@@ -134,7 +139,7 @@ class Game:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     print(event.pos)
                     try:
-                        if pygame.sprite.collide_mask(cursor, SubWindow.group[Window.priority].button):
+                        if pygame.sprite.collide_mask(self.cursor, SubWindow.group[Window.priority].button):
                             SubWindow.change_visibility(Window.priority)
                             Layer.test()
                     # dans le cas où Window.priority est de type Nonetype
@@ -144,16 +149,18 @@ class Game:
                         pass
                     if self.resizing['can_resize']:
                         self.resizing['is_resizing'] = True
+                        check_priority_change = False
 
                     # dans le cas où une collision s'opère entre le curseur et
                     # un menu déroulant
-                    scrolling_menu_collide = pygame.sprite.spritecollide(cursor, Layer.scrolling_menu, False)
+                    scrolling_menu_collide = pygame.sprite.spritecollide(self.cursor, Layer.scrolling_menu, False)
                     if scrolling_menu_collide:
                         scrolling_menu_collide[0].parent.change_visibility()
 
                 if event.type == pygame.MOUSEMOTION:
                     if self.resizing['is_resizing']:
                         try:
+                            print('>>>>>>>>>>>>>>>>>>>>>', Cursor.wall)
                             self.resizing['window'].parent.single_resize(self.screen)
                             Cursor.set_current(self.resizing['side'])
                         except AttributeError:
@@ -164,28 +171,29 @@ class Game:
 
                 if event.type == pygame.MOUSEBUTTONUP:
                     if self.resizing['is_resizing']:
-                        #try:
-                        self.resizing['can_resize'] = False
-                        self.resizing['is_resizing'] = False
-                        #except AttributeError:
-                            #pass
+                        try:
+                            self.resizing['can_resize'] = False
+                            self.resizing['is_resizing'] = False
+                            check_priority_change = True
+                        except AttributeError:
+                            pass
             
             if check_priority_change:
                 self.static_mouse_event()
                 try:
-                    SubWindow.group[Window.priority].display.test_side(cursor)
+                    SubWindow.group[Window.priority].display.test_side(self.cursor)
                 # dans le cas où il s'agit d'un objet Window
                 except KeyError:
                     Cursor.set_current('default')  # ##
-                except AttributeError:
-                    Cursor.set_current('default')  # ## pas de name pour menuderoulant moment
+                """except AttributeError:
+                    Cursor.set_current('default')  # ## pas de name pour menuderoulant moment"""
 
             # dessin de tous les sprites ordonnés par calques
             Layer.all_sprites.draw(self.screen)
             # mise à jour des sprites
             pygame.display.update()
             # mise à jour de la position de la souris
-            cursor.update()
+            self.cursor.update()
 
             pygame.display.set_caption(f'FPS: {clock.get_fps()}')  # ##
             clock.tick(60)
