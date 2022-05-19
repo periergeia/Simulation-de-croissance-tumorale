@@ -5,6 +5,7 @@
 pour la gestion des objets modélisant des fenêtres du jeu."""
 
 
+# importations des différents modules
 import math
 import pygame
 try:
@@ -21,6 +22,7 @@ except ModuleNotFoundError:
     from module.useful import get_top_left_pos, Text
 
 
+# initialisation du module pygame
 pygame.init()
 
 
@@ -37,11 +39,11 @@ class Window(pygame.sprite.Sprite):
     le curseur se situe.
 
     ATTRIBUTS:
+    - `_layer` (int) : position du calque ;
     - `data` (dict) : contient les données (position relative,
     taille relative, ...) de l'objet fenêtre récupérées dans un fichier JSON
     (précisé par le nom de la fenêtre) ;
     - `image` (pygame.Surface) : représentation graphique de l'instance ;
-    - `_layer` (int) : position du calque ;
     - `name` (str) : nom de la fenêtre ;
     - `rect` (pygame.Rect) : défini la position et les dimensions utiles à
     l'affichage."""
@@ -65,7 +67,7 @@ class Window(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self, Layer.stock)  # ##
 
     def resize(self, window):
-        """redimenssione selon les valeurs de la fenêtre de jeu `window`, une
+        """redimensionne selon les valeurs de la fenêtre de jeu `window`, une
         instance de pygame.Surface."""
         main_window_w, main_window_h = window.get_width(), window.get_height()
         x_value = round(self.data['relative']['x'] * main_window_w)
@@ -102,8 +104,7 @@ class SubWindow(pygame.sprite.OrderedUpdates):
         |___Button
         |___Border
             |___Edge
-        |___Display
-    """
+        |___Display"""
 
     border_width = 0
     group = {}
@@ -151,6 +152,9 @@ class SubWindow(pygame.sprite.OrderedUpdates):
 
     @staticmethod
     def change_visibility(name):
+        """change la visibilité d'une sous-fenêtre dont le nom `name` est
+        spécifié en paramètre. Si elle est visible, elle est rendue invisible,
+        autrement, elle est rendue visible."""
         try:
             Layer.all_sprites.remove(SubWindow.group[name])
         except KeyError:  # ## voir à changer
@@ -159,7 +163,7 @@ class SubWindow(pygame.sprite.OrderedUpdates):
     def resize(self, window):
         """méthode appelant les méthodes de redimensionnement propre à chaque
         instance de sprites de la classe."""
-        # redimenssionement de tous les sprites de sous-fenêtre apparents sur
+        # redimensionnement de tous les sprites de sous-fenêtre apparents sur
         # le sprite de l'instance Window
         self.button.resize()
         self.display.resize(window)
@@ -171,11 +175,12 @@ class SubWindow(pygame.sprite.OrderedUpdates):
                  '1': ('h', 'y'),
                  '2': ('x', 'w'),
                  '3': ('w', 'x')}  # ##déplacer ?
-        # pour chaque bord en contact avec le curseur (deux au plus)         
+        # pour chaque bord en contact avec le curseur (deux au plus)
         for edge in Cursor.wall:
+            dict_value = self.display.data['relative']
             # previous_relative_value peut être inutilisé dans certains cas
             # il est plus rentable que de vérifier si edge = 0 | edge = 2
-            previous_relative_value = self.display.data['relative'][value[edge][0]]
+            previous_relative_value = dict_value[value[edge][0]]
             # il s'agit de savoir si les valleurs changer sont dépendant de la
             # largeur ou de la longueur de la fenêtre de jeu, on rappelle que
             # tout est défini relativement à celle-ci en terme de
@@ -184,67 +189,109 @@ class SubWindow(pygame.sprite.OrderedUpdates):
             size_index = 1 if int(edge) < 2 else 0
             # changement d'une valeur qui prend en considération la position
             # de la souris et du bord
-            self.display.data['relative'][value[edge][0]] = pygame.mouse.get_pos()[size_index] / window.get_size()[size_index]
+            dict_value[value[edge][0]] = pygame.mouse.get_pos()[size_index] / \
+                                         window.get_size()[size_index]
             # s'il s'agit du bord haut ('0') ou du bord gauche ('2')
             if int(edge) % 2 == 0:
                 # il s'agit de changer la hauteur (si bord haut)
                 # (respectivement la largeur (si bord gauche)) afin de donner
                 # l'illusion que la position du bord bas (respectivement bord
                 # droit) reste inchangée
-                diff = self.display.data['relative'][value[edge][0]] - previous_relative_value
-                self.display.data['relative'][value[edge][1]] = self.display.data['relative'][value[edge][1]] - diff
+                diff = dict_value[value[edge][0]] - previous_relative_value
+                dict_value[value[edge][1]] = dict_value[value[edge][1]] - diff
             # il ne peut que s'agir du bord bas ('1') ou du bord droit ('3')
             else:
                 # il faut déduire de la valeur nouvellement prise, celle de la
                 # position x pour le bord droit et celle de la position y pour
                 # le bord bas
-                self.display.data['relative'][value[edge][0]] -= self.display.data['relative'][value[edge][1]]
+                dict_value[value[edge][0]] -= dict_value[value[edge][1]]
         # redimensionnement de la sous-fenêtre
         self.resize(window)
         # test min et ratio à intégrer
 
     class Button(pygame.sprite.Sprite):
+        """modélise un bouton de sous-fenêtre.
+
+        ATTRIBUTS DE CLASSE:
+        - `image` (pygame.Surface) : représentation visuelle d'un bouton ;
+        - `mask` (pygame.Mask) : représentation du masque (un objet permettant
+        d'estimer la surface occupée par une image) du cercle visuel servant de
+        bouton de fermeture d'une sous-fenêtre;
+        - `radius` (int) : il s'agit du rayon d'un bouton.
+
+        ATTRIBUTS:
+        - `_layer` (int) : calque sur lequel se situe l'instance ;
+        - `name` (str) : nom du bouton pour l'associer à la sous-fenêtre ;
+        - `parent` (Subwindow) : correspond à l'instance parent ;
+        - `rect` (pygame.Rect) : rectangle occupé par le bouton."""
 
         radius = 0
         image = None
         mask = None
 
         def __init__(self, window_display):
-
+            """méthode constructrice."""
             self.name = window_display.name  # ##
             self.rect = pygame.Rect(0, 0, 0, 0)  # ## moyen d'enlever
             self.parent = window_display
             self._layer = window_display._layer
             pygame.sprite.Sprite.__init__(self)
 
-        def resize(self):  # ##
+        def resize(self):
+            """méthode de redimensionnement."""
             self.image = SubWindow.Button.image
             self.mask = SubWindow.Button.mask
-            self.rect = self.image.get_rect(center=(self.parent.rect.x + self.parent.rect.w - 1.5 * SubWindow.Button.radius, self.parent.rect.y + 1.5 * SubWindow.Button.radius))
+            x_axis = self.parent.rect.x + self.parent.rect.w - 1.5 * SubWindow.Button.radius
+            y_axis = self.parent.rect.y + 1.5 * SubWindow.Button.radius
+            self.rect = self.image.get_rect(center=(x_axis, y_axis))
+
+        def get_name(self):
+            """renvoie le nom de la sous-fenêtre associée."""
+            return self.name
 
 
     class Border(pygame.sprite.Group):
+        """modélise une bordure de fenêtre, un rectangle aurait été bien plus
+        simple mais l'esthétique n'y sera pas, certaines personnes aiment bien
+        s'embêter (pour rush la dernière semaine avant le rendu du projet).
+
+        ATTRIBUTS:
+        - `parent` (SubWindow.Display) : surface sur laquelle nous associons
+        une bordure ;
+        - `stock` (dict) : contient quatre couple correspondant aux bords, des
+        instances de la classe SubWindow.Border.Edge :
+            - '0' : bord haut
+            - '1' : bord bas
+            - '2' : bord gauche
+            - '3' : bord droit.
+
+        ARCHITECTURE DE LA CLASSE:
+        Border
+            |___Edge"""
 
         def __init__(self, window_display):
+            """méthode constructrice, `window_display est une instance de
+            la classe `SubWindow.Display`."""
             pygame.sprite.Group.__init__(self)
             self.parent = window_display
             self.stock = {}
             layer = window_display._layer
             for edge in [str(i) for i in range(4)]:
-                self.stock[edge] = SubWindow.Border.Edge(edge, window_display.name, layer)
+                self.stock[edge] = self.Edge(edge, window_display.name, layer)
                 self.add(self.stock[edge])
 
         def resize(self):
+            """méthode de redimensionnement des bords de la bordure."""
             # 0 --> bord du haut (top)
-            print(self.stock['0'].rect)
             self.stock['0'].rect.update(self.parent.rect.x,
                                         self.parent.rect.y,
                                         self.parent.rect.w,
                                         SubWindow.border_width)
-            print(self.stock['0'].rect)
             # 1 --> bord du bas (bottom)
+            sum_y_h = self.parent.rect.h + self.parent.rect.y
+            bottom_y_axis = sum_y_h - SubWindow.border_width
             self.stock['1'].rect.update(self.parent.rect.x,
-                                        self.parent.rect.h + self.parent.rect.y - SubWindow.border_width,
+                                        bottom_y_axis,
                                         self.parent.rect.w,
                                         SubWindow.border_width)
             # 2 --> bord de gauche (left)
@@ -253,37 +300,78 @@ class SubWindow(pygame.sprite.OrderedUpdates):
                                         SubWindow.border_width,
                                         self.parent.rect.h)
             # 3 --> bord de droite (right)
-            self.stock['3'].rect.update(self.parent.rect.x + self.parent.rect.w - SubWindow.border_width,
+            sum_x_w = self.parent.rect.x + self.parent.rect.w
+            right_x_axis = sum_x_w - SubWindow.border_width
+            self.stock['3'].rect.update(right_x_axis,
                                         self.parent.rect.y,
                                         SubWindow.border_width,
                                         self.parent.rect.h)
             self.update_image()
 
         def update_image(self):
+            """met à jour l'attribut image de l'instance."""
             for sprite in self:
-                sprite.image = pygame.Surface(sprite.rect.size)
+                sprite.update_image()
                 sprite.image.fill(COLOR_THEME[self.parent.data['color']]['border'])
 
 
         class Edge(pygame.sprite.Sprite):
-            """
-            0 : top,
-            1 : bottom,
-            2 : left,
-            3 : right"""
+            """modélise un bord.
 
-            # essayer de faire hériter d'une instance et non d'une classe
+            ATTRIBUTS:
+            - `_layer` (int) : numéro du calque ;
+            - `image` (pygame.Surface) : représentation visuelle ;
+            - `name` (int) : nom de la sous-fenêtre associée ;
+            - `number` (int) : identifie le côté représenté par le bord :
+                - '0' : bord haut
+                - '1' : bord bas
+                - '2' : bord gauche
+                - '3' : bord droit ;
+            - `rect` (pygame.Rect) : permet de situer la représentation
+            visuelle par rapport à la fenêtre de jeu."""
+
             def __init__(self, number, name, layer):
+                """méthode constructrice."""
                 self.number = number
                 self.name = name
                 self._layer = layer
                 self.rect = pygame.Rect(0, 0, 0, 0)
+                self.image = pygame.Surface((0, 0))
                 pygame.sprite.Sprite.__init__(self)
+
+            def update_image(self):
+                """met à jour (à moitié) l'attribut image de l'instance."""
+                self.image = pygame.Surface(self.rect.size)
+
+            def get_name(self):
+                """renvoie le nom de la sous-fenêtre associée."""
+                return self.name
+
+            def get_number(self):
+                """renvoie le nombre identifiant le côté de la bordure."""
+                return self.number
 
 
     class Display(Window):
+        """modélise un écran de sous-fenêtre, il s'agit de la surface dépourvue
+        de bouton de fermeture.
+
+        ATTRIBUTS ISSUS DE LA CLASSE PARENT:
+        - `_layer` (int) : position du calque ;
+        - `data` (dict) : contient les données (position relative,
+        taille relative, ...) de l'objet fenêtre récupérées dans un fichier JSON
+        (précisé par le nom de la fenêtre) ;
+        - `image` (pygame.Surface) : représentation graphique de l'instance ;
+        - `name` (str) : nom de la fenêtre ;
+        - `rect` (pygame.Rect) : défini la position et les dimensions utiles à
+        l'affichage.
+
+        ATTRIBUTS:
+        - `borders` (SubWindow.Borders) : bordure de la sous-fenêtre ;
+        - `parent` (SubWindow) : sauvegarde d'une référence de l'instance parent."""
 
         def __init__(self, name, window, parent, func=None):
+            """méthode constructrice."""
             super().__init__(name, window)
             # définition des bords de l'affichage de la sous-fenêtre
             self.borders = SubWindow.Border(self)
@@ -353,7 +441,7 @@ class SubWindow(pygame.sprite.OrderedUpdates):
                 if collided:
                     set_changes(collided)
 
-            # création d'une liste des bords touchée
+            # création d'une liste des bords touchés
             collided = pygame.sprite.spritecollide(cursor, self.borders, False)
             if Cursor.test:
                 check_edge(collided)
@@ -362,18 +450,28 @@ class SubWindow(pygame.sprite.OrderedUpdates):
 
 
 class ScrollingMenu(pygame.sprite.OrderedUpdates):
-    """modélise un bouton permettant d'afficher au survol de la souris des
-    options d'affichage ou autres. Chaque option est graphiquement défini
-    comme une ligne contenant dans l'ordre : image (optionnelle), label, signe
-    (correspondant à un signe de validation, pas toujours apparent, dépend des
-    choix du joueur).
+    """modélise un menu déroulant.
+
+    ATTRIBUTS DE CLASSE:
+    - `count` (int) : compteur, nombre d'instance créé, utile pour le placement
+    sur la fenêtre de jeu ;
+    - `font_size` (None | int) : taille de font à prendre ;
+    - `dict_all` (dict) : contient les instances référencées par leur nom.
 
     ATTRIBUTS:
-    - `content` (list) ;
-    - `number` (int) ;
-    - `` () ;
-    - `` () ;
-    - `` () ;"""
+    - `_layer` (int) : numéro du calque (vous commencez à bien connaître) ;
+    - `content` (list) : liste des menus à créer ;
+    - `displayed` (bool) : visibilité de l'affichage ;
+    - `menu` (ScrollingMenu.Menu) : référence vers l'objet créé ;
+    - `menu_option` (ScrollingMenu.MenuOption) : référence vers l'objet créé ;
+    - `name` (str) : nom du menu déroulant.
+
+    ARCHITECTURE DE LA CLASSE:
+    ScrollingMenu
+        |___Menu
+        |___MenuOption
+            |___Option"""
+
     count = 0
     font_size = None
     dict_all = {}
@@ -384,115 +482,175 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
         déroulant, `menu_names` une liste de chaînes de caractères et
         `window` l'objet pygame.Surface de la fenêtre de jeu pygame."""
         pygame.sprite.OrderedUpdates.__init__(self)
-
         self._layer = 10 # ## dernier
-
         self.content = menu_names
         self.displayed = False
         ScrollingMenu.dict_all[name] = self
-
         self.name = name
-
         self.menu = self.Menu(self)
         self.menu_option = self.MenuOption(self)
-
+        # création des sous-fenêtres
         for element in menu_names:
             SubWindow(element, window)
         Layer.all_sprites.add(self)
 
     @staticmethod
     def resize(window):
-        liste_des_mots = [f'sub_window_{i}' for i in range(1, 5)] # inutile si on connaît le mot le plus long
-        ScrollingMenu.font_size = Text.get_font_size(liste_des_mots, (round(0.1 * window.get_width()), round(0.05 * window.get_height())), 2/3)
+        """méthode de redimensionnement où `window` correspond à la surface
+        de la fenêtre de jeu pygame. Elle redimensionne tous les menus
+        déroulant."""
+        # ## remplacer par mot le plus long de la liste des mots contenus
+        # dans les menus déroulant
+        mot_le_plus_long = 'subwindow_1'
+        # redéfinition de la taille de la police
+        rect_size = (round(0.1 * window.get_width()),
+                     round(0.05 * window.get_height()))
+        ScrollingMenu.font_size = Text.get_font_size(mot_le_plus_long,
+                                                     rect_size, 2/3)
         for instance in ScrollingMenu.dict_all.values():
             instance.menu.resize(window)
             instance.menu_option.update_rect_info()
             instance.menu_option.resize()
-        # ## rechoisir taille texte ?
 
 
     class Menu(pygame.sprite.Sprite):
+        """modélise le bouton de menu, celui toujours visible et permettant
+        d'afficher le menu déroulant.
+
+        ATTRIBUTS:
+        - `_layer` (int) : numéro du calque ;
+        - `image` (list) : représentation visuelle du bouton de menu ;
+        - `name` (str) : nom du menu déroulant associé ;
+        - `number` (int) : attribut pratique pour l'emplacement du bouton de
+        menu selon l'ordre d'instanciation des objets de la classe
+        ScrollingMenu ;
+        - `parent` (ScrollingMenu) : référence vers l'instance parent ;
+        - `rect` (pygame.Rect) : contient les données nécéssaires pour situer
+        l'image du sprite sur la fenêtre de jeu pygame."""
 
         def __init__(self, parent):
+            """méthode constructrice."""
             self.parent = parent
             self.number = ScrollingMenu.count
             ScrollingMenu.count += 1
             self.name = parent.name
             self._layer = self.parent._layer
-            pygame.sprite.Sprite.__init__(self, self.parent, Layer.scrolling_menu)
+            pygame.sprite.Sprite.__init__(self, self.parent,
+                                          Layer.scrolling_menu)
             self.rect = pygame.Rect(0, 0, 0, 0)
-            self.image = pygame.Surface((1, 1))
+            self.image = pygame.Surface((0, 0))
 
         def resize(self, window):
-            main_window_w, main_window_h = window.get_width(), window.get_height()
+            """méthode pour le redimensionnement."""
+            main_window_w, main_window_h = window.get_size()
             x_value = round(self.number * 0.1 * main_window_w)
             w_value = round(0.1 * main_window_w)
             h_value = round(0.05 * main_window_h)
             self.rect = pygame.Rect(x_value, 0, w_value, h_value)
             self.image = pygame.Surface(self.rect.size)
-
             color_theme = COLOR_THEME[Window.dict_all['space'].data['color']]
+            # remplissage de la surface avec la couleur de fond
             self.image.fill(COLOR[color_theme['background']])
-            pygame.draw.rect(self.image, COLOR[color_theme['border']], pygame.Rect(0, 0, w_value, h_value), SubWindow.border_width)
-            text = Text.font[ScrollingMenu.font_size]['font'].render(self.name, 1, COLOR[color_theme['border']])
-            self.image.blit(text, get_top_left_pos(text.get_rect(), self))
+            # ajout d'une bordure pour l'esthétique et parce que je n'ai padvi
+            pygame.draw.rect(self.image, COLOR[color_theme['border']],
+                             pygame.Rect(0, 0, w_value, h_value),
+                             SubWindow.border_width)
+            # ajout du texte
+            text = Text.font[ScrollingMenu.font_size]['font']
+            text_surface = text.render(self.name, 1,
+                                       COLOR[color_theme['border']])
+            self.image.blit(text_surface,
+                            get_top_left_pos(text_surface.get_rect(), self))
+
+        def get_name(self):
+            """renvoie le nom de la sous-fenêtre associée."""
+            return self.name
 
 
     class MenuOption(pygame.sprite.Group):
+        """modélise un menu déroulant, bouton pour l'ouvrir et fermer exclu.
+
+        ATTRIBUTS:
+        - `_layer` (int) : numéro du calque ;
+        - `parent` (ScrollingMenu) : référence vers l'instance parent ;
+        - `rect_info` (pygame.Rect) : permet de transporter les informations
+        du bouton associé aux options de menu afin que ce dernier puisse avoir
+        des caractéristiques de position et dimensions.
+
+        ARCHITECTURE DE LA CLASSE:
+        MenuOption
+            |___Option"""
+
         def __init__(self, parent):
+            """méthode constructrice."""
             self.parent = parent
             pygame.sprite.Group.__init__(self)
             self.update_rect_info()
             self._layer = self.parent._layer
             for i, name in enumerate(parent.content):
                 self.Option(self, name, i)
-            #self.parent.add(self)
 
         def update_rect_info(self):
+            """met à jour les données du rectangle de référence."""
             self.rect_info = self.parent.menu.rect
 
         def resize(self):
+            """méthode de redimensionnement."""
             for sprite in self:
                 sprite.resize()
 
+
         class Option(pygame.sprite.Sprite):
+            """correspond à une option d'un menu déroulant.
+
+            ATTRIBUTS:
+            - `_layer` (int) : numéro du calque ;
+            - `name` (str) : nom du menu déroulant ;
+            - `parent` (ScrollingMenu) : référence vers l'instance parent ;
+            - `place` (int) : position sur l'axe y, 0 correspondant au premier
+            en partant du haut."""
+
             def __init__(self, parent, name, place):
+                """méthode constructrice."""
                 self._layer = parent._layer
                 pygame.sprite.Sprite.__init__(self, parent)
                 self.parent = parent
                 self.name = name
                 self.place = place
+                self.rect = pygame.Rect(0, 0, 0, 0)
+                self.image = pygame.Surface((0, 0))
 
             def resize(self):
+                """méthode de redimensionnement."""
                 self.rect = self.parent.rect_info.copy()
                 self.rect.y = (self.place + 1) * self.parent.rect_info.height
                 self.image = pygame.Surface(self.rect.size)
                 color_theme = COLOR_THEME[Window.dict_all['space'].data['color']]
                 self.image.fill(COLOR[color_theme['background']])
-                pygame.draw.rect(self.image, COLOR[color_theme['border']], pygame.Rect((0, 0), (self.rect.size)), SubWindow.border_width)
-                text = Text.font[ScrollingMenu.font_size]['font'].render(self.name, 1, COLOR[color_theme['border']])
-                self.image.blit(text, get_top_left_pos(text.get_rect(), self))
+                pygame.draw.rect(self.image, COLOR[color_theme['border']],
+                                 pygame.Rect((0, 0), (self.rect.size)),
+                                 SubWindow.border_width)
+                text = Text.font[ScrollingMenu.font_size]['font']
+                text_surface = text.render(self.name, 1,
+                                           COLOR[color_theme['border']])
+                self.image.blit(text_surface,
+                                get_top_left_pos(text_surface.get_rect(), self))
 
-
-    def create_text(self):
-        ...
+            def get_name(self):
+                """renvoie le nom de la sous-fenêtre associée."""
+                return self.name
 
     def change_visibility(self):
+        """permet de changer la visibilité des options de menu."""
+        # changement du booléen gérant l'état de la visibilité
         self.displayed = not self.displayed
         Layer.all_sprites.remove(self)
+        # si les options doivent être affichées
         if self.displayed:
+            # ajout des sprites des menus d'option dans l'instance
             self.add(self.menu_option)
         else:
+            # les menus d'options sont retirés de l'instance
             self.remove(self.menu_option)
+        # on ajoute l'instance dans le groupe d'affichage
         Layer.all_sprites.add(self)
-
-    def create_surface(self):
-        """"""
-        """self.surface = pygame.Surface()
-        font_height = 0.05 * WINDOW_DATA['height']
-        font = pygame.font.Font("others/Anton-Regular.ttf",
-                                     get_font_size(font_height))"""
-
-
-    def display(self, surface):
-        surface.blit(self.surface, self.get_position())
