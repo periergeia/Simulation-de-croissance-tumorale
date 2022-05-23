@@ -1,8 +1,8 @@
 """module contenant les constantes."""
 
 
-OBJETS = {}
-in_functions_dic = lambda f: OBJETS.setdefault(f.__name__, f)
+FUNCTION = {}
+in_functions_dict = lambda f: FUNCTION.setdefault(f.__name__, f)
 
 
 COLOR = {'RED': (237, 41, 57),
@@ -29,4 +29,6 @@ COLOR_THEME = {'default': {'background': 'LIGHT_GREY',
                         'font': 'WHITE',
                         'border': 'WHITE'}}
 
+
 SUBWINDOWS_NAMES = ['coeur', 'poumon', 'foie', 'colon', 'intestins', 'estomac']
+FUNCTIONNALITIES = ['el_joseph']
