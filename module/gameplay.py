@@ -6,13 +6,13 @@ import sys
 import pygame
 import pygame.freetype
 try:
-    from constant import SUBWINDOWS_NAMES
+    from constant import FUNCTION, SUBWINDOWS_NAMES, FUNCTIONNALITIES
     from game_objects import Cursor, Layer
-    from windows import Graphical, Window, SubWindow, ScrollingMenu, create_image
+    from windows import Image, Graphical, Window, SubWindow, ScrollingMenu
 except ModuleNotFoundError:
-    from module.constant import SUBWINDOWS_NAMES
+    from module.constant import FUNCTION, SUBWINDOWS_NAMES, FUNCTIONNALITIES
     from module.game_objects import Cursor, Layer
-    from module.windows import Graphical, Window, SubWindow, ScrollingMenu, create_image
+    from module.windows import Image, Graphical, Window, SubWindow, ScrollingMenu
 
 
 # menu permettant de choisir une mutation, qui apparait selon une
@@ -75,7 +75,8 @@ class Game:
         # importation d'image
         icon = pygame.image.load("./image/logo.ico").convert_alpha()  # ##déplacement ?
         # personnalisation de la fenêtre
-        pygame.display.set_caption("Simulation de la croissance de cellules tumorales")
+        pygame.display.set_caption("Simulation de la \
+                                   croissance de cellules tumorales")
         pygame.display.set_icon(icon)
 
     @staticmethod
@@ -235,20 +236,25 @@ class Game:
                                         Layer.menu_options, False)
             if menu_options_collide:
                 # la visibilité du menu_déroulant est changée
-                if isinstance(SubWindow.group[menu_options_collide[0].name].display.func, Graphical):
+                try:
+                    if isinstance(SubWindow.group[menu_options_collide[0].name].display.func, Graphical):
+                        print('>>>>>>>>>>>>', menu_options_collide[0].name)
+                        SubWindow.change_visibility(menu_options_collide[0].name)
+                except KeyError:
                     print('>>>>>>>>>>>>', menu_options_collide[0].name)
-                    SubWindow.change_visibility(menu_options_collide[0].name)
-
-
+                    FUNCTION[menu_options_collide[0].name]()
 
     def run(self):
         """boucle principale de jeu."""
         Window('space', self.screen)
-        ScrollingMenu('■ ■ ■', SUBWINDOWS_NAMES, self.screen, 1)
+        Image("./image/vue_organe.png", 'space', (0.31, 0.15, 0.2, 0.8), 'organe')
+        Image("./image/vue_sans_organe.png", 'space', (0.31, 0.15, 0.2, 0.8), 'sans_organe')
+        ScrollingMenu('ORGANES', SUBWINDOWS_NAMES, self.screen, 1)
+        ScrollingMenu('OPTIONS', FUNCTIONNALITIES, self.screen, 2)
         """ScrollingMenu('■ ■ ■', [f'sub_window_{i}' for i in range(1, 3)], self.screen)
         ScrollingMenu('■ ■', ['sub_window_3'], self.screen)
         ScrollingMenu('■', ['sub_window_4'], self.screen)"""
-        m = create_image("./image/vue_organe.png", 'space', (0.31, 0.15, 0.2, 0.8))
+        # Image("./image/vue_organe.png", 'space', (0.31, 0.15, 0.2, 0.8))
 
         # met à jour les dimensions de chaque objet du jeu
         self.resize()
@@ -281,5 +287,6 @@ class Game:
             # mise à jour de la position de la souris
             self.cursor.update()
 
-            pygame.display.set_caption(f'FPS: {clock.get_fps()}')  # ##
+            pygame.display.set_caption(f'Simulation de la croissance de cellules tumorales \
+                                       FPS: {clock.get_fps()}')
             clock.tick(60)
