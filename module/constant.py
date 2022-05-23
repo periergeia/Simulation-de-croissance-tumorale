@@ -29,4 +29,4 @@ COLOR_THEME = {'default': {'background': 'LIGHT_GREY',
                         'font': 'WHITE',
                         'border': 'WHITE'}}
 
-SUBWINDOWS_NAMES = [f'sub_window_{i}' for i in range(1, 5)]
+SUBWINDOWS_NAMES = ['coeur', 'poumon', 'foie', 'colon', 'intestins', 'estomac']
