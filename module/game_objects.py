@@ -1,15 +1,10 @@
-"""module contenant des classes d'objet utiles à la gameplay.""" 
+"""module contenant des classes d'objets utiles à la gameplay.""" 
+
 
 import pygame
 
 
-class ColorTheme:  # ## pourrait être pratique
-    def __init__(self):
-        ...
-
-
 class Cursor(pygame.sprite.Sprite):
-    
     """modélise le curseur de la fenêtre de jeu.
     
     ATTRIBUTS DE CLASSE:
@@ -24,8 +19,7 @@ class Cursor(pygame.sprite.Sprite):
     - `` () ;
     - `` () ;
     - `` () ;
-    - `` () ;
-    """
+    - `` () ."""
 
     cursors = {'default': pygame.cursors.Cursor(pygame.SYSTEM_CURSOR_ARROW),
                'NS': pygame.cursors.Cursor(pygame.SYSTEM_CURSOR_SIZENS),
@@ -77,7 +71,8 @@ class Layer:
     stock = pygame.sprite.Group()
     all_sprites = pygame.sprite.LayeredUpdates()
     windows = pygame.sprite.Group()  # ##
-    scrolling_menu = pygame.sprite.Group()
+    scrolling_menus = pygame.sprite.Group()
+    menu_options = pygame.sprite.Group()
 
     @staticmethod
     def find(sprite):
@@ -94,23 +89,27 @@ class Layer:
         # erreur raised lorsque Layer.all_sprites est vide
         except IndexError:
             return 0
-
-    @staticmethod
-    def test():
-        print('----')
-        for index in Layer.all_sprites.layers():
-            print(index)
-            for sprite in Layer.all_sprites.get_sprites_from_layer(index):
-                print(sprite.name)
-            print('----')
     
     @staticmethod
     def test():
         for index in Layer.all_sprites.layers():
             print(index)
             for sprite in Layer.all_sprites.get_sprites_from_layer(index):
-                print(type(sprite))
+                try:
+                    print(sprite.name, ' '*5, type(sprite))
+                except AttributeError:
+                    print(' '*15, type(sprite))
             print('----')
+
+    @staticmethod
+    def move_to_top(sprite):
+        """for spr in sprite:
+            Layer.all_sprites.move_to_front(spr)"""
+        Layer.all_sprites.remove(Layer.scrolling_menus)
+        if sprite.get_layer_of_sprite() == Layer.all_sprites.get_top_layer():
+            Layer.all_sprites.remove(sprite)
+            Layer.all_sprites.add(sprite)
+        Layer.all_sprites.add(Layer.scrolling_menus)
 
     @staticmethod
     def mouse_over():
@@ -119,3 +118,53 @@ class Layer:
             return sprites_below[-1].name
         except IndexError:
             return None
+
+
+
+"""
+ change_layer(self, sprite, new_layer)
+ |      change the layer of the sprite
+ |
+ |      LayeredUpdates.change_layer(sprite, new_layer): return None
+ |
+ |      The sprite must have been added to the renderer already. This is not
+ |      checked.
+ 
+ |  get_layer_of_sprite(self, sprite)
+ |      return the layer that sprite is currently in
+ |
+ |      If the sprite is not found, then it will return the default layer.
+ 
+ |  get_sprites_from_layer(self, layer)
+ |      return all sprites from a layer ordered as they where added
+ |
+ |      LayeredUpdates.get_sprites_from_layer(layer): return sprites
+ |
+ |      Returns all sprites from a layer. The sprites are ordered in the
+ |      sequence that they where added. (The sprites are not removed from the
+ |      layer.
+ 
+ |  get_top_layer(self)
+ |      return the top layer
+ |
+ |      LayeredUpdates.get_top_layer(): return layer
+ 
+ |  get_top_sprite(self)
+ |      return the topmost sprite
+ 
+ |  move_to_front(self, sprite)
+ |      bring the sprite to front layer
+ |
+ |      LayeredUpdates.move_to_front(sprite): return None
+ |
+ |      Brings the sprite to front by changing the sprite layer to the top-most
+ |      layer. The sprite is added at the end of the list of sprites in that
+ |      top-most layer.
+ 
+ |  switch_layer(self, layer1_nr, layer2_nr)
+ |      switch the sprites from layer1_nr to layer2_nr
+ |
+ |      LayeredUpdates.switch_layer(layer1_nr, layer2_nr): return None
+ |
+ |      The layers number must exist. This method does not check for the
+ |      existence of the given layers."""
