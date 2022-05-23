@@ -9,13 +9,13 @@ pour la gestion des objets modélisant des fenêtres du jeu."""
 import math
 import pygame
 try:
-    from constant import COLOR_THEME, COLOR
+    from constant import FUNCTION, COLOR_THEME, COLOR, in_functions_dict
     from game_objects import Cursor, Layer
     from handle_json import get_value
     from mode import style
     from useful import get_top_left_pos, Text
 except ModuleNotFoundError:
-    from module.constant import COLOR_THEME, COLOR
+    from module.constant import FUNCTION, COLOR_THEME, COLOR, in_functions_dict
     from module.game_objects import Cursor, Layer
     from module.handle_json import get_value
     from module.mode import style
@@ -26,19 +26,21 @@ except ModuleNotFoundError:
 pygame.init()
 
 
-def create_image(file_path, parent_name, relative_position):
-    return Image("./image/vue_organe.png", 'space', (0.31, 0.15, 0.2, 0.8))
-
 class Image(pygame.sprite.Sprite):
 
-    def __init__(self, file_path, parent_name, relative_position):
+    group = {} 
+
+    def __init__(self, file_path, parent_name, relative_position, name=None):
         self._layer = Window.dict_all[parent_name]._layer
         pygame.sprite.Sprite.__init__(self, Layer.all_sprites)
         self.image_save = pygame.image.load(file_path).convert_alpha()
+        self.image = self.image_save.copy()
         self.parent_name = parent_name
-        self.name = None
+        self.name = name
         self.relative_position = relative_position
         self.rect = pygame.Rect(0, 0, 0, 0)
+        Image.group[name] = self
+        self.resize(1)
 
     def resize(self, windows):
         window_size = Window.dict_all[self.parent_name].rect.size
@@ -587,7 +589,12 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
         self.menu_option = self.MenuOption(self)
         # création des sous-fenêtres
         for element in menu_names:
-            SubWindow(element, window, func)
+            # dans le cas où il s'agit de fonctions spécifiques
+            try:
+                FUNCTION[element]()
+            except KeyError:
+                # création d'une sous-fenêtre
+                SubWindow(element, window, func)
 
     @staticmethod
     def resize(window):
@@ -749,3 +756,23 @@ class ScrollingMenu(pygame.sprite.OrderedUpdates):
             self.remove(self.menu_option)
         # on ajoute l'instance dans le groupe d'affichage
         Layer.all_sprites.add(self)
+
+
+@in_functions_dict
+def el_joseph():
+    """change la visibilité d'une sous-fenêtre dont le nom `name` est
+    spécifié en paramètre. Si elle est visible, elle est rendue invisible,
+    autrement, elle est rendue visible."""
+    print('appelée')
+    #try:
+    # dans le cas où la sous-fenêtre appartient au groupe d'affichage
+    if Layer.all_sprites.has(Image.group['sans_organe']):
+        # la sous-fenêtre est retirée du groupe d'affichage
+        Layer.all_sprites.remove(Image.group['sans_organe'])
+        Layer.all_sprites.add(Image.group['organe'])
+    else:
+        # on ajoute l'instance dans le groupe d'affichage
+        Layer.all_sprites.remove(Image.group['organe'])
+        Layer.all_sprites.add(Image.group['sans_organe'])
+    #except KeyError:  # ##inutile ?
+    #    pass
