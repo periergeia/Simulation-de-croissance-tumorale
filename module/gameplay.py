@@ -8,16 +8,18 @@ import pygame.freetype
 try:
     from constant import SUBWINDOWS_NAMES
     from game_objects import Cursor, Layer
-    from windows import Window, SubWindow, ScrollingMenu
+    from windows import Graphical, Window, SubWindow, ScrollingMenu, create_image
 except ModuleNotFoundError:
     from module.constant import SUBWINDOWS_NAMES
     from module.game_objects import Cursor, Layer
-    from module.windows import Window, SubWindow, ScrollingMenu
+    from module.windows import Graphical, Window, SubWindow, ScrollingMenu, create_image
 
 
 # menu permettant de choisir une mutation, qui apparait selon une
 # certaine proba ou une clock particulière
 # ajouter sprite pour définir espace pour grab
+# ________changement bonhomme, avec, sans organe dans nouveau menu
+# ___subwindow visible au début ?
 
 # ##
 # pylint: disable=E1101
@@ -59,6 +61,7 @@ class Game:
         window_height = round(fullscreen_width * 2/3)
         window_width = round(window_height * 1.8)
         window_size = (window_width, window_height)
+        print(window_size)
         # définition de la fenêtre pygame de taille dynamique
         self.screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
         self.state = 1
@@ -132,7 +135,7 @@ class Game:
 
         if event.type == pygame.KEYDOWN:  # ##
             if event.key == pygame.K_c:
-                print(Cursor.test)
+                Layer.test()
 
     def handle_window_priority(self, event):
         """ensemble d'actions selon `event`, objet pygame.event, gérant la
@@ -142,6 +145,10 @@ class Game:
         if event.type == pygame.WINDOWLEAVE:
             # on ne vérifie plus s'il y a une priorité sur une sous-fenêtre
             self.check_priority_change = False
+            # le redimensionnement n'est plus permis
+            self.resizing['can_resize'] = False
+            self.resizing['is_resizing'] = False
+
         # si le curseur entre dans la fenêtre de jeu pygame
         if event.type == pygame.WINDOWENTER:
             # on permet de nouveau les vérification liées à la priorité
@@ -177,7 +184,10 @@ class Game:
 
         # user event : une sous-fenêtre peut être redimensionnée
         if event.type == Game.RESIZING:
-            self.resizing['window'] = Window.dict_all[Window.priority]
+            try:
+                self.resizing['window'] = Window.dict_all[Window.priority]
+            except KeyError:
+                pass
             self.resizing['can_resize'] = event.state
             self.resizing['side'] = event.side
 
@@ -187,7 +197,9 @@ class Game:
             if self.resizing['is_resizing']:
                 # on essaie de redimensionner la sous-fenêtre en fonction
                 try:
-                    self.resizing['window'].parent.single_resize(self.screen)
+                    subwindow_to_resize = self.resizing['window'].parent
+                    Layer.move_to_top(subwindow_to_resize)
+                    subwindow_to_resize.single_resize(self.screen)
                     Cursor.set_current(self.resizing['side'])
                 except AttributeError:
                     pass
@@ -197,12 +209,12 @@ class Game:
             # si une sous-fenêtre est sur le point d'être redimensionnée
             if self.resizing['is_resizing']:
                 # changement des valeurs de booléens nécéssaires
-                try:
-                    self.resizing['can_resize'] = False
-                    self.resizing['is_resizing'] = False
-                    self.check_priority_change = True
-                except AttributeError:
-                    pass
+                #try:
+                self.resizing['can_resize'] = False
+                self.resizing['is_resizing'] = False
+                self.check_priority_change = True
+                # ##except AttributeError:
+                    #pass
 
     def handle_scrolling_menu(self, event):
         """ensemble d'actions selon `event`, objet pygame.event, gérant
@@ -213,18 +225,34 @@ class Game:
             # un menu déroulant
             scrolling_menu_collide = pygame.sprite.spritecollide(
                                         self.cursor,
-                                        Layer.scrolling_menu, False)
+                                        Layer.scrolling_menus, False)
             if scrolling_menu_collide:
                 # la visibilité du menu_déroulant est changée
                 scrolling_menu_collide[0].parent.change_visibility()
+            # vérification si une option de menu est cliqué
+            menu_options_collide = pygame.sprite.spritecollide(
+                                        self.cursor,
+                                        Layer.menu_options, False)
+            if menu_options_collide:
+                # la visibilité du menu_déroulant est changée
+                if isinstance(SubWindow.group[menu_options_collide[0].name].display.func, Graphical):
+                    print('>>>>>>>>>>>>', menu_options_collide[0].name)
+                    SubWindow.change_visibility(menu_options_collide[0].name)
+
+
 
     def run(self):
         """boucle principale de jeu."""
-        Layer.all_sprites.add(Window('space', self.screen))
-        ScrollingMenu('■ ■ ■', SUBWINDOWS_NAMES, self.screen)
+        Window('space', self.screen)
+        ScrollingMenu('■ ■ ■', SUBWINDOWS_NAMES, self.screen, 1)
+        """ScrollingMenu('■ ■ ■', [f'sub_window_{i}' for i in range(1, 3)], self.screen)
+        ScrollingMenu('■ ■', ['sub_window_3'], self.screen)
+        ScrollingMenu('■', ['sub_window_4'], self.screen)"""
+        m = create_image("./image/vue_organe.png", 'space', (0.31, 0.15, 0.2, 0.8))
+
         # met à jour les dimensions de chaque objet du jeu
         self.resize()
-        Layer.test()
+        Layer.all_sprites.add(Layer.scrolling_menus)
         # permet de filtrer sur les évènements pygame d'un objet pygame.Event
         # pygame.event.set_blocked(pygame.MOUSEMOTION)
         # pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN, pygame.KEYUP])
