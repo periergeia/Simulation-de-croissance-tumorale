@@ -19,6 +19,7 @@ def get_dict(file_path):
     file.close()
     return data
 
+
 @file_directory_issue()
 def write(file_path, dict_key, new_data):
     """modfifie le fichier JSON `file_path` en remplaçant la valeur
