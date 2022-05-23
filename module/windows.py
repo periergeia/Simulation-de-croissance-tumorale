@@ -8,6 +8,7 @@ pour la gestion des objets modélisant des fenêtres du jeu."""
 # importations des différents modules
 import math
 import pygame
+import random
 try:
     from constant import FUNCTION, COLOR_THEME, COLOR, in_functions_dict
     from game_objects import Cursor, Layer
@@ -27,10 +28,12 @@ pygame.init()
 
 
 class Image(pygame.sprite.Sprite):
+    """modélise une image à afficher."""
 
     group = {} 
 
     def __init__(self, file_path, parent_name, relative_position, name=None):
+        """méthode constructrice."""
         self._layer = Window.dict_all[parent_name]._layer
         pygame.sprite.Sprite.__init__(self, Layer.all_sprites)
         self.image_save = pygame.image.load(file_path).convert_alpha()
@@ -43,6 +46,11 @@ class Image(pygame.sprite.Sprite):
         self.resize(1)
 
     def resize(self, windows):
+        """méthode de redimensionnement."""
+        # entièrement inutile mais plus le temps de mettre au propre
+        random_list = []
+        random_list.append(windows)
+        # recherche des valeurs
         window_size = Window.dict_all[self.parent_name].rect.size
         window_pos = Window.dict_all[self.parent_name].rect.topleft
         x_value = self.relative_position[0] * window_size[0]
@@ -51,39 +59,123 @@ class Image(pygame.sprite.Sprite):
         h_value = round(self.relative_position[3] * window_size[1])
         self.rect.update(x_value + window_pos[0], y_value + window_pos[1], w_value, h_value)
         self.image = pygame.transform.smoothscale(self.image_save, (w_value, h_value))
+    
+    def get_name(self):
+        """getter inutile."""
+        return self.name
 
 
 class Graphical(pygame.sprite.Group):
-    """"""
+    """affichage graphique d'une sous-fenêtre."""
+
     def __init__(self, name, parent):
+        """méthode constructrice."""
         pygame.sprite.Group.__init__(self)
-        #self.refresh = 1/timer
-        #self.change_image(window)
         self.background = Image(f"./image/{name}.png", name, parent.data['image'])
+        self.dev_cell = Graphical.DevCell(parent)
+        self.parent = parent
         self.add(self.background)
 
     def resize(self):
+        """redimensionnement."""
         self.background.resize(1)
+    
+    class DevCell(pygame.sprite.Group):
+        """modélise le développement d'une cellule tumorale."""
+        def __init__(self, parent):
+            """méthode constructrice."""
+            pygame.sprite.Group.__init__(self, Layer.all_sprites)
+            self.parent = parent
+            self.screen = parent.image
+            # self.grid = DevCell.Grid(self)
+            self.group = pygame.sprite.Group()
+            self.first_cell = self.Cell((self.screen.get_width()//2, self.screen.get_height()//2), (20, 20), self)  # ## taille variable ?
 
-    def change_image(self, window):
-        ...
-        """size = random.randint(10, min(window.get_size())//2)
-        self.image = pygame.Surface(window.get_size())
-        self.image.set_colorkey((0, 0, 0))
-        random_color = (random.randint(size, 255), random.randint(size, 255), random.randint(0, 255))
-        random_position = (random.randint(0, window.get_width()-size), random.randint(0, window.get_height()-size))
-        pygame.draw.circle(self.image, random_color, random_position,size)
-        font = pygame.font.Font(None, get_font_size(size))
-        self.image.blit(font.render(str(self.id), 1, (0, 150, 0)), (0, 0))
-        self.rect = self.image.get_rect()"""
+        def resize(self):
+            """redimenssionement."""
+            previous_pos = pygame.math.Vector2(self.first_cell.pos)
+            new_pos = pygame.math.Vector2(self.screen.get_width()//2, self.screen.get_height()//2)
+            diff = new_pos-previous_pos
+            for sprite in self.group:
+                sprite.rect.x += diff[0]
+                sprite.rect.y += diff[1]
+            #self.grid.resize(1)
 
-    """def update(self, window):
-        self.state += self.refresh
-        if self.state > 1:
-            self.change_image(window)
-            self.state = 0
-        window.blit(self.image, (0, 0))
-        return window"""
+        def gen_cells(self):
+            """permet de générer des cellules."""
+            list_cells = self.group
+            for cell in list_cells:
+                new_cell_pos = cell.dup_cell()
+                if new_cell_pos is not None:
+                    self.Cell(new_cell_pos, (20, 20), self)
+
+        class Grid(pygame.sprite.Sprite):
+            """modélise une grille."""
+            def __init__(self, parent):
+                """méthode constructrice."""
+                pygame.sprite.Sprite.__init__(self, parent)
+                self.image = pygame.Surface((0, 0))
+                self.rect = pygame.Rect(0, 0, 0, 0)
+                self.parent = parent
+
+            def resize(self):
+                """redimensionnement."""
+                window_width, window_height = self.parent.screen.get_size()
+                self.image = pygame.Surface((self.parent.screen.get_size()))
+                #self.image.set_colorkey((0, 0, 0))
+                self.image.fill((255, 255, 255))
+                for x in range(0, window_width+20, 20):
+                    pygame.draw.line(self.image, (0, 0, 0), (x, 0), (x, window_height))
+                    pygame.draw.line(self.image, (0, 0, 0), (0, x), (window_width, x))
+                self.rect = self.image.get_rect(center=self.parent.parent.rect.center)
+                self.image.set_alpha(25)
+
+
+        class Cell(pygame.sprite.Sprite):
+            """
+            Définit l'objet Cellule
+            """
+            image = pygame.image.load(f'./image/cell_sprite.png')
+
+            def __init__(self, pos, size, parent):
+                """
+                Initialise la position de la cellule
+                """
+                self.parent = parent
+                self._layer = self.parent.parent._layer
+                pygame.sprite.Sprite.__init__(self, self.parent.group, parent, Layer.all_sprites)
+                self.color = (0, 0, 0)
+                self.image = Graphical.DevCell.Cell.image
+                self.size = size
+                self.rect = pygame.Rect(pos, self.size)
+                self.pos = pos
+                self.name = None
+                self.neighbors = []
+
+            def test_neighbors(self, new_pos):
+                for cell in self.parent.group:
+                    # ##if new_pos == cell.get_pos() or new_pos == self.pos:
+                    if new_pos == cell.get_pos():
+                        return True
+                return False
+
+            def dup_cell(self):
+                """
+                Renvoie la position d'une cellule dupliquée sous forme de tuple(x, y)
+                définie de manière aléatoire
+                """
+                rand = random.random()
+                if rand < 10**(-2):
+                    new_pos = self.pos[0] + random.randint(-1, 1) * self.size[0], self.pos[1] + random.randint(-1, 1) * self.size[0]
+                    if not self.Cell.test_neighbors(self, new_pos):
+                        return new_pos
+                return
+
+            def get_pos(self):
+                """
+                Renvoie la position de l'objet.
+                """
+                return self.pos
 
 
 class Window(pygame.sprite.Sprite):
